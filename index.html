@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>배달 피젯 스피너 - 야식 욕구 해결사</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts (Outfit & Noto Sans KR) -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Noto Sans KR', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eefbfb',
+              100: '#d5f7f5',
+              500: '#2AC1BC', // 배민 민트색
+              600: '#24a5a1',
+              700: '#1b807d',
+            },
+            eats: {
+              50: '#f0f9ff',
+              500: '#00A5E3', // 쿠팡이츠 하늘색
+              600: '#0084b6',
+            }
+          },
+          boxShadow: {
+            'neon': '0 0 15px rgba(42, 193, 188, 0.4)',
+            'neon-orange': '0 0 15px rgba(249, 115, 22, 0.4)',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    body {
+      font-family: 'Noto Sans KR', 'Outfit', sans-serif;
+      touch-action: manipulation; /* 모바일 터치 지연 방지 */
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* 스크롤바 미표시 */
+    .scrollbar-none::-webkit-scrollbar {
+      display: none;
+    }
+    .scrollbar-none {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    /* 피젯 스피너 무한 회전 */
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin-slow {
+      animation: spin-slow 10s linear infinite;
+    }
+    
+    /* 룰렛 회전 애니메이션 */
+    @keyframes roulette-spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(1800deg); }
+    }
+    .animate-roulette {
+      animation: roulette-spin 3s cubic-bezier(0.1, 0.8, 0.1, 1) forwards;
+    }
+    
+    /* 톱니 모양 영수증 상/하단 효과 */
+    .receipt-jagged {
+      background-image: 
+        linear-gradient(-45deg, transparent 4px, #ffffff 4px), 
+        linear-gradient(45deg, transparent 4px, #ffffff 4px);
+      background-position: left bottom;
+      background-repeat: repeat-x;
+      background-size: 8px 8px;
+    }
+    
+    .receipt-jagged-top {
+      background-image: 
+        linear-gradient(-135deg, transparent 4px, #ffffff 4px), 
+        linear-gradient(135deg, transparent 4px, #ffffff 4px);
+      background-position: left top;
+      background-repeat: repeat-x;
+      background-size: 8px 8px;
+    }
+
+    /* 핑거프린팅 스캐너 라인 애니메이션 */
+    @keyframes scan-line {
+      0% { top: 0%; }
+      50% { top: 100%; }
+      100% { top: 0%; }
+    }
+    .animate-scan-line {
+      animation: scan-line 2s ease-in-out infinite;
+    }
+    
+    /* 파티클 상승 애니메이션 */
+    @keyframes particle-up {
+      0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-80px) scale(0.6);
+        opacity: 0;
+      }
+    }
+    .animate-particle {
+      animation: particle-up 0.8s ease-out forwards;
+    }
+
+    /* 슬라이드 업 & 페이드 인 트랜지션 */
+    @keyframes slide-up {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .animate-slide-up {
+      animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.2s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center overflow-x-hidden p-0 md:p-4 text-slate-800">
+
+  <!-- 데스크톱용 아이폰 스타일 폰 데코레이션 프레임 -->
+  <div class="relative w-full max-w-md h-screen md:h-[840px] md:max-h-[90vh] md:rounded-[48px] md:border-[10px] md:border-slate-800 md:shadow-2xl md:ring-4 md:ring-slate-700 bg-slate-50 flex flex-col overflow-hidden">
+    
+    <!-- 아이폰 노치 / 수화기 데코레이션 (데스크톱에서만 노출) -->
+    <div class="hidden md:block absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 bg-slate-800 rounded-b-2xl z-50 flex items-center justify-center">
+      <div class="w-16 h-1 bg-slate-700 rounded-full mb-1"></div>
+      <div class="w-2.5 h-2.5 bg-slate-900 rounded-full ml-3 mb-1"></div>
+    </div>
+    
+    <!-- 모바일 상태바 (시간, 배터리 등) -->
+    <div class="w-full h-8 px-6 pt-2 flex justify-between items-center bg-transparent z-40 text-xs font-semibold text-slate-600 select-none">
+      <span id="statusBarTime" class="font-outfit">21:39</span>
+      <div class="flex items-center gap-1.5 font-outfit">
+        <span>5G</span>
+        <!-- 배터리 아이콘 -->
+        <div class="w-5 h-2.5 border border-slate-600 rounded-sm p-0.5 flex items-center">
+          <div class="w-full h-full bg-slate-600 rounded-2xs"></div>
+        </div>
+        <span>100%</span>
+      </div>
+    </div>
+
+    <!-- 메인 뷰포트 컨테이너 (화면별 토글) -->
+    <div class="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none flex flex-col relative pb-6">
+
+      <!-- ==================== [화면 1: 메인 홈 (대시보드)] ==================== -->
+      <section id="screen-home" class="flex flex-col flex-1 px-5 pt-2">
+        <!-- 상단 헤더 -->
+        <div class="flex justify-between items-center py-3">
+          <div>
+            <h2 class="text-xs font-bold text-brand-600 tracking-wider">DELIVERY FIDGET SPINNER</h2>
+            <h1 class="text-xl font-extrabold text-slate-800 flex items-center gap-1">
+              오늘도 이겨낸 당신 <span class="animate-bounce">🏆</span>
+            </h1>
+          </div>
+          <!-- 리셋 버튼 -->
+          <button onclick="resetStats()" class="p-2 text-slate-400 hover:text-red-500 rounded-full hover:bg-slate-100 transition-colors" title="통계 초기화">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- 핵심 요약 보드 (원형 프로그래스 카드 형태로 세련되게) -->
+        <div class="bg-gradient-to-br from-brand-500 to-teal-600 rounded-3xl p-6 text-white shadow-lg shadow-teal-500/20 my-4 relative overflow-hidden">
+          <div class="absolute -right-10 -bottom-10 w-36 h-36 bg-white/10 rounded-full blur-xl"></div>
+          <p class="text-sm font-medium text-teal-50/90">총 아낀 배달비</p>
+          <div class="flex items-baseline gap-1 mt-1">
+            <span id="savedMoney" class="text-4xl font-extrabold tracking-tight font-outfit">0</span>
+            <span class="text-xl font-bold">원</span>
+          </div>
+          <div class="mt-5 pt-4 border-t border-white/20 grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-xs text-teal-100">아낀 칼로리</p>
+              <div class="flex items-center gap-1 mt-0.5">
+                <span class="text-lg font-bold font-outfit" id="savedCalories">0</span>
+                <span class="text-xs font-semibold">kcal</span>
+              </div>
+            </div>
+            <div>
+              <p class="text-xs text-teal-100">지켜낸 내 시간</p>
+              <div class="flex items-center gap-1 mt-0.5">
+                <span class="text-lg font-bold font-outfit" id="savedTime">0</span>
+                <span class="text-xs font-semibold">분</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 감동 및 자극 카드 -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex flex-col gap-3 my-2">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-xl">💡</div>
+            <div>
+              <h3 class="font-bold text-slate-800 text-sm">참아낸 횟수만큼 지갑이 빵빵</h3>
+              <p class="text-xs text-slate-500 mt-0.5" id="encourageMessage">오늘 밤도 훌륭히 견뎌내고 있군요! 야식이 당길 때는 가짜 배달을 마음껏 주문해 보세요.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 동기 부여 위젯 (재미용) -->
+        <div class="bg-slate-800 text-slate-200 rounded-2xl p-4 my-2 border border-slate-700 relative overflow-hidden flex items-center justify-between">
+          <div>
+            <h4 class="text-xs text-brand-500 font-bold uppercase tracking-wider">나의 등급</h4>
+            <p class="text-base font-bold mt-0.5" id="userTier">배달 극복 꿈나무 🌱</p>
+            <p class="text-xxs text-slate-400 mt-1" id="nextTierText">다음 등급까지 참기 1회 남음</p>
+          </div>
+          <span class="text-3xl" id="tierEmoji">🌱</span>
+        </div>
+
+        <!-- 메인 주문 버튼 (Pulsing Effect) -->
+        <div class="mt-auto pt-6 flex flex-col items-center">
+          <button onclick="goToStoreList()" class="relative group w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-3 overflow-hidden">
+            <span class="absolute inset-0 w-full h-full bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></span>
+            
+            <!-- 오토바이 달리는 인라인 SVG -->
+            <svg class="w-6 h-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            <span class="text-lg">가짜 배달 주문하러 가기</span>
+          </button>
+          <p class="text-xs text-slate-400 mt-3 text-center">결제는 전부 가짜로 진행되며 0원도 청구되지 않습니다.</p>
+        </div>
+      </section>
+
+      <!-- ==================== [화면 2: 가짜 가게 리스트] ==================== -->
+      <section id="screen-stores" class="hidden flex flex-col flex-1 px-5 pt-2">
+        <!-- 상단 헤더 -->
+        <div class="flex items-center gap-3 py-3">
+          <button onclick="goToHome()" class="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          <h1 class="text-lg font-black text-slate-800">어떤 야식을 참아볼까요?</h1>
+        </div>
+
+        <!-- 가짜 카테고리 칩 -->
+        <div class="flex gap-2 overflow-x-auto py-2 scrollbar-none">
+          <button onclick="filterCategory('전체')" class="px-4 py-1.5 bg-brand-500 text-white text-xs font-bold rounded-full transition-colors border border-brand-500 shrink-0 category-chip">전체</button>
+          <button onclick="filterCategory('치킨')" class="px-4 py-1.5 bg-white text-slate-500 text-xs font-medium rounded-full hover:bg-slate-50 transition-colors border border-slate-200 shrink-0 category-chip">치킨</button>
+          <button onclick="filterCategory('분식')" class="px-4 py-1.5 bg-white text-slate-500 text-xs font-medium rounded-full hover:bg-slate-50 transition-colors border border-slate-200 shrink-0 category-chip">분식</button>
+          <button onclick="filterCategory('피자')" class="px-4 py-1.5 bg-white text-slate-500 text-xs font-medium rounded-full hover:bg-slate-50 transition-colors border border-slate-200 shrink-0 category-chip">피자</button>
+          <button onclick="filterCategory('마라탕')" class="px-4 py-1.5 bg-white text-slate-500 text-xs font-medium rounded-full hover:bg-slate-50 transition-colors border border-slate-200 shrink-0 category-chip">마라탕</button>
+        </div>
+
+        <!-- 정렬 탭 -->
+        <div class="flex border-b border-slate-200 mt-3">
+          <button id="sort-popular" onclick="sortStores('popular')" class="flex-1 py-2 text-center text-xs font-bold text-brand-500 border-b-2 border-brand-500 sort-tab">인기순</button>
+          <button id="sort-fast" onclick="sortStores('fast')" class="flex-1 py-2 text-center text-xs font-medium text-slate-400 hover:text-slate-600 sort-tab">배달 빠른 순</button>
+          <button id="sort-tip" onclick="sortStores('tip')" class="flex-1 py-2 text-center text-xs font-medium text-slate-400 hover:text-slate-600 sort-tab">배달팁 낮은 순</button>
+        </div>
+
+        <!-- 가게 목록 -->
+        <div class="flex flex-col gap-4 mt-4" id="storeContainer">
+          <!-- JS로 가게 정보 바인딩 -->
+        </div>
+      </section>
+
+      <!-- ==================== [화면 3: 가짜 가게 상세 및 메뉴 선택] ==================== -->
+      <section id="screen-store-detail" class="hidden flex flex-col flex-1 pb-16">
+        <!-- 상단 히어로 영역 (CSS 그라데이션 및 로고) -->
+        <div class="relative h-44 w-full bg-gradient-to-tr from-slate-800 to-brand-700 flex items-end p-5 text-white">
+          <button onclick="backToStoreList()" class="absolute top-4 left-4 p-2 bg-slate-900/50 hover:bg-slate-900/80 rounded-full transition-colors z-10 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          
+          <div class="relative z-10">
+            <div id="detailStoreBadge" class="bg-brand-500 text-white text-xxs font-bold px-2 py-0.5 rounded-full inline-block mb-1">치킨 전문점</div>
+            <h1 id="detailStoreName" class="text-2xl font-black tracking-tight">치킨은 살 안쪄</h1>
+            <div class="flex items-center gap-2 mt-1.5 text-xs text-slate-200">
+              <span class="flex items-center gap-0.5 text-yellow-400 font-bold">★ <span id="detailStoreRating">4.99</span></span>
+              <span>•</span>
+              <span id="detailStoreDeliveryTime">20~30분 소요</span>
+              <span>•</span>
+              <span id="detailStoreDeliveryTip">배달팁 3,500원</span>
+            </div>
+          </div>
+          <!-- 장식성 배경 오버레이 -->
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+        </div>
+
+        <!-- 룰렛 게이미피케이션 영역 -->
+        <div class="px-5 py-4 bg-orange-50 border-y border-orange-100 flex items-center justify-between">
+          <div class="flex-1 pr-3">
+            <h3 class="font-bold text-orange-950 text-sm flex items-center gap-1">
+              결정 장애 해결사 🎯
+            </h3>
+            <p class="text-xxs text-orange-800 mt-0.5">메뉴 선택도 도파민 넘치게! 룰렛을 돌려 무작위 메뉴를 추가해 보세요.</p>
+          </div>
+          <button onclick="openRoulette()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold px-3 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 shrink-0 flex items-center gap-1">
+            <span>룰렛 돌리기</span>
+          </button>
+        </div>
+
+        <!-- 메뉴 목록 -->
+        <div class="px-5 mt-4 flex flex-col gap-4">
+          <h2 class="text-sm font-bold text-slate-500 border-b border-slate-100 pb-2">가장 인기있는 가짜 메뉴</h2>
+          <div class="flex flex-col gap-4" id="menuContainer">
+            <!-- JS로 메뉴 아이템 렌더링 -->
+          </div>
+        </div>
+
+        <!-- 하단 장바구니 보기 플로팅 바 (카트 비어있지 않을 때만 보임) -->
+        <div id="bottomCartBar" class="hidden absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 flex justify-between items-center z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+          <div class="flex flex-col">
+            <span class="text-xxs text-slate-400 font-medium">현재 담은 가짜 금액</span>
+            <span class="text-base font-extrabold text-slate-800 font-outfit" id="bottomCartTotal">25,500원</span>
+          </div>
+          <button onclick="openCartModal()" class="bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm py-3 px-6 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-brand-500/20">
+            <span class="bg-white/20 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" id="bottomCartCount">0</span>
+            <span>가짜 장바구니 보기</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ==================== [화면 4: 가짜 결제 및 배달 중 스피너] ==================== -->
+      <section id="screen-delivery" class="hidden flex flex-col flex-1 px-5 pt-2">
+        <h1 class="text-center font-black text-xl text-slate-800 py-3">실시간 가짜 배달 중 🛵</h1>
+        
+        <!-- 실시간 라이더 맵 데코레이션 (아주 심플하고 세련된 미니 그리드 노선도) -->
+        <div class="bg-slate-800 rounded-3xl p-5 border border-slate-700 relative overflow-hidden flex flex-col gap-4 shadow-inner">
+          <div class="flex justify-between items-center text-xs font-bold text-slate-400">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-brand-500 inline-block"></span>가게</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 inline-block"></span>우리집</span>
+          </div>
+          
+          <!-- 진행 트랙 -->
+          <div class="relative h-12 flex items-center">
+            <!-- 백그라운드 라인 -->
+            <div class="absolute w-full h-1.5 bg-slate-700 rounded-full"></div>
+            <!-- 채워지는 진행 상황 선 -->
+            <div id="riderTrackFill" class="absolute h-1.5 bg-gradient-to-r from-brand-500 to-orange-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            
+            <!-- 라이더 아이콘 (Scooter) -->
+            <div id="riderIconWrapper" class="absolute -ml-5 transition-all duration-300" style="left: 0%">
+              <div class="bg-brand-500 border-2 border-slate-800 text-white p-2 rounded-full shadow-lg flex items-center justify-center transform hover:scale-110">
+                <!-- Scooter SVG -->
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125a1.125 1.125 0 0 0 1.125-1.125V9.75M8.25 13.875h7.5M8.25 9.75h7.5M3.375 9.75H8.25m0 0V5.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125V9.75M8.25 9.75L12 5.625M12 9.75V5.625" />
+                </svg>
+              </div>
+            </div>
+            
+            <!-- 우리집 골인 지점 -->
+            <div class="absolute right-0 text-2xl">🏠</div>
+          </div>
+
+          <!-- 상태 갱신 텍스트 -->
+          <div class="text-center py-1">
+            <p id="deliveryStatusText" class="text-xs font-bold text-brand-400">라이더님이 음식을 준비하고 있습니다...</p>
+            <div class="flex justify-center items-center gap-4 mt-2">
+              <span class="text-xxs text-slate-400">남은 시간: <span id="deliveryTimeLeft" class="font-outfit text-white font-bold text-xs">60</span>초</span>
+              <span class="text-xxs text-slate-400">진행률: <span id="deliveryProgressPercent" class="font-outfit text-white font-bold text-xs">0</span>%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 피젯 핵심 엔진 영역 -->
+        <div class="flex-1 flex flex-col justify-center items-center py-6 gap-6 relative">
+          <!-- 연기 및 효과 파티클 컨테이너 -->
+          <div id="particleContainer" class="absolute w-full h-full pointer-events-none z-10"></div>
+
+          <!-- 스피너 그래픽 & 탭 버튼 -->
+          <div class="relative flex items-center justify-center">
+            <!-- 회전하는 오토바이 휠 모양 스피너 (외곽 링) -->
+            <div id="fidgetWheel" class="w-52 h-52 rounded-full border-[10px] border-slate-200 border-t-brand-500 border-b-orange-500 flex items-center justify-center transition-all duration-300 shadow-2xl relative">
+              <!-- 내부 스포크 데코레이터 -->
+              <div class="absolute inset-2 rounded-full border-4 border-dashed border-slate-300 flex items-center justify-center">
+                <!-- 중앙 코어 -->
+                <div class="w-16 h-16 rounded-full bg-slate-900 shadow-lg flex items-center justify-center">
+                  <div class="w-6 h-6 rounded-full bg-brand-500 animate-ping"></div>
+                </div>
+              </div>
+              
+              <!-- 휠 위쪽 장식 (오토바이 스피너 핀) -->
+              <div class="absolute -top-3 w-8 h-8 rounded-full bg-brand-500 border-4 border-slate-900 shadow flex items-center justify-center text-xs">🛵</div>
+              <div class="absolute -bottom-3 w-8 h-8 rounded-full bg-orange-500 border-4 border-slate-900 shadow flex items-center justify-center text-xs">🏠</div>
+              <div class="absolute -left-3 w-8 h-8 rounded-full bg-teal-500 border-4 border-slate-900 shadow flex items-center justify-center text-xs">⚡</div>
+              <div class="absolute -right-3 w-8 h-8 rounded-full bg-red-500 border-4 border-slate-900 shadow flex items-center justify-center text-xs">🔥</div>
+            </div>
+          </div>
+
+          <!-- 터치 자극 유도 정보 -->
+          <div class="text-center">
+            <div class="inline-block bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200">
+              <span class="text-xs font-bold text-slate-600">스피너 속도 (RPM): </span>
+              <span id="rpmValue" class="text-sm font-extrabold text-orange-500 font-outfit">0</span>
+            </div>
+            <p class="text-xxs text-slate-400 mt-2">화면의 오토바이 바퀴나 아래 엔진 탭을 미친듯이 탭하여 배달을 단축하세요!</p>
+          </div>
+
+          <!-- 마구 탭하는 거대 엔진 버튼 -->
+          <button id="btnEngineTap" 
+                  class="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-black py-5 px-6 rounded-2xl shadow-lg hover:shadow-orange-500/20 active:scale-95 transition-all duration-100 select-none flex flex-col items-center justify-center gap-0.5"
+                  style="touch-action: manipulation;">
+            <span class="text-lg tracking-wider flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 animate-pulse">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+              엔진 가속 (TAP!)
+            </span>
+            <span class="text-xxs font-normal opacity-90">탭하면 배달이 진짜 1.5초씩 줄어듭니다</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ==================== [화면 5: 가짜 영수증 및 절약 리포트] ==================== -->
+      <section id="screen-receipt" class="hidden flex flex-col flex-1 px-5 pt-2">
+        <h1 class="text-center font-black text-xl text-brand-600 py-3 flex items-center justify-center gap-1.5">
+          🎉 야식 극복 성공!
+        </h1>
+        
+        <!-- 영수증 컨테이너 -->
+        <div id="receiptContainer" class="bg-white rounded-t-xl shadow-xl border border-slate-200/60 pb-8 relative overflow-hidden flex flex-col receipt-jagged mt-2">
+          
+          <!-- 상단 톱니 마감 데코 -->
+          <div class="h-2 w-full receipt-jagged-top bg-slate-200"></div>
+
+          <div class="px-6 pt-6 flex flex-col items-center">
+            <h2 class="font-black text-2xl tracking-tighter text-slate-800">가짜 배달 영수증</h2>
+            <p class="text-xxs text-slate-400 font-outfit mt-1">NO. <span id="receiptNumber">000000000000</span></p>
+            <div class="w-full border-b border-dashed border-slate-200 my-4"></div>
+          </div>
+
+          <!-- 주문 상세 품목 -->
+          <div class="px-6 flex flex-col gap-2.5">
+            <div id="receiptStoreName" class="text-xs font-bold text-slate-500">치킨은 살 안쪄</div>
+            <div class="flex flex-col gap-2 text-xs" id="receiptItemList">
+              <!-- JS로 바인딩 -->
+            </div>
+            <div class="w-full border-b border-dashed border-slate-200 my-2"></div>
+          </div>
+
+          <!-- 결제 금액 정보 -->
+          <div class="px-6 flex flex-col gap-2 text-xs">
+            <div class="flex justify-between text-slate-500">
+              <span>총 주문금액</span>
+              <span id="receiptOrderPrice" class="font-outfit">22,000원</span>
+            </div>
+            <div class="flex justify-between text-slate-500">
+              <span>가짜 배달팁</span>
+              <span id="receiptDeliveryTip" class="font-outfit">+3,500원</span>
+            </div>
+            <div class="flex justify-between text-slate-500">
+              <span>야식 극복 특별 할인</span>
+              <span id="receiptDiscount" class="text-red-500 font-outfit font-bold">-0원</span>
+            </div>
+            <div class="w-full border-b border-slate-200 my-2"></div>
+            
+            <div class="flex justify-between text-sm font-black text-slate-800">
+              <span>최종 청구 금액</span>
+              <span class="text-brand-500 font-outfit text-base">0원</span>
+            </div>
+          </div>
+
+          <!-- 아낀 성과 리포트 도장 및 효과 -->
+          <div class="px-6 mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2 bg-slate-50/50 rounded-b-xl">
+            <h4 class="text-xs font-bold text-slate-700">이겨낸 성과 분석</h4>
+            <div class="grid grid-cols-3 gap-2 text-center text-xxs font-medium mt-1 text-slate-500">
+              <div class="bg-white rounded-lg p-2 border border-slate-100">
+                <p>아낀 통장 잔고</p>
+                <p class="font-bold text-brand-600 font-outfit text-xs mt-1" id="receiptSavedMoney">0원</p>
+              </div>
+              <div class="bg-white rounded-lg p-2 border border-slate-100">
+                <p>보호한 내 위장</p>
+                <p class="font-bold text-orange-500 font-outfit text-xs mt-1" id="receiptSavedCal">0 kcal</p>
+              </div>
+              <div class="bg-white rounded-lg p-2 border border-slate-100">
+                <p>지켜낸 야간 시간</p>
+                <p class="font-bold text-indigo-500 font-outfit text-xs mt-1" id="receiptSavedTime">0분</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 지갑 사수 스탬프 이미지 (순수 SVG/CSS 결합형 대형 데코) -->
+          <div class="absolute right-4 top-20 transform rotate-12 opacity-80 pointer-events-none select-none">
+            <div class="border-4 border-red-500/80 rounded-2xl px-3 py-1 text-red-500/80 font-black text-lg tracking-wider border-double shadow-sm">
+              지갑 수호 성공 🛡️
+            </div>
+          </div>
+        </div>
+
+        <!-- 쉐어 & 복귀 액션 -->
+        <div class="flex flex-col gap-3 mt-6">
+          <button onclick="shareReceipt()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm py-4 rounded-2xl transition-all shadow active:scale-95 flex items-center justify-center gap-2">
+            <!-- Share SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+            </svg>
+            <span>이겨낸 결과 텍스트 복사 (공유용)</span>
+          </button>
+          
+          <button onclick="finishOrderAndCollect()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-black text-sm py-4 rounded-2xl transition-all shadow-lg shadow-brand-500/20 active:scale-95">
+            메인 홈으로 (통계 누적)
+          </button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ==================== [팝업 모달 1: 장바구니 리스트 상세 모달] ==================== -->
+  <div id="cartModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 flex items-end justify-center p-0 md:p-4">
+    <!-- 모달 오버레이 클릭 시 닫기 -->
+    <div class="absolute inset-0" onclick="closeCartModal()"></div>
+    
+    <div class="relative bg-white rounded-t-3xl md:rounded-3xl max-w-md w-full max-h-[80vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up z-10">
+      <!-- 드래그 바 느낌 데코 -->
+      <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto my-3 shrink-0"></div>
+      
+      <div class="px-6 pb-4 flex justify-between items-center border-b border-slate-100">
+        <h3 class="text-base font-extrabold text-slate-800">가짜 주문 장바구니</h3>
+        <button onclick="closeCartModal()" class="p-1 hover:bg-slate-100 rounded-full text-slate-400">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      
+      <!-- 카트 스크롤 영역 -->
+      <div id="cartModalList" class="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4 max-h-[40vh] scrollbar-none">
+        <!-- JS로 담긴 카트 리스트 바인딩 -->
+      </div>
+      
+      <!-- 금액 세부 정산 -->
+      <div class="px-6 py-4 bg-slate-50 flex flex-col gap-2 text-xs border-t border-slate-100">
+        <div class="flex justify-between text-slate-500">
+          <span>주문 금액</span>
+          <span id="cartSumPrice" class="font-outfit">0원</span>
+        </div>
+        <div class="flex justify-between text-slate-500">
+          <span>배달팁</span>
+          <span id="cartDeliveryTip" class="font-outfit">0원</span>
+        </div>
+        <div class="flex justify-between text-sm font-bold text-slate-800 pt-2 border-t border-slate-200">
+          <span>총 결제금액</span>
+          <span id="cartTotalPrice" class="font-outfit text-brand-600">0원</span>
+        </div>
+      </div>
+      
+      <!-- 최종 결제 버튼 -->
+      <div class="p-5">
+        <button onclick="startCheckout()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-black text-sm py-4 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+          <span id="checkoutButtonText">가짜로 결제하기 (0원 청구)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== [팝업 모달 2: 지문 결제 스캔 팝업] ==================== -->
+  <div id="checkoutModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-xs w-full p-6 text-center text-white flex flex-col items-center gap-5 shadow-2xl relative overflow-hidden">
+      <!-- 빛 반사 데코 -->
+      <div class="absolute -top-10 -right-10 w-24 h-24 bg-brand-500/20 rounded-full blur-xl"></div>
+      
+      <div class="flex flex-col items-center">
+        <h3 class="font-bold text-md tracking-tight">가짜 안심 결제</h3>
+        <p class="text-xxs text-slate-400 mt-1">보안 지문 인식을 진행해 주세요</p>
+      </div>
+      
+      <!-- 지문인식 패드 프레임 -->
+      <div class="relative w-24 h-24 bg-slate-800 rounded-2xl border-2 border-slate-700 flex items-center justify-center overflow-hidden cursor-pointer group hover:border-brand-500 transition-colors">
+        <!-- 움직이는 스캔 레이저 라인 -->
+        <div class="absolute left-0 right-0 h-0.5 bg-brand-500 animate-scan-line shadow-[0_0_10px_#2AC1BC]"></div>
+        
+        <!-- Fingerprint SVG -->
+        <svg class="w-16 h-16 text-slate-500 group-hover:text-brand-500 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M12 11c0-3.517-1.009-6.799-2.753-9.571m-3.44 2.04l.054-.09A13.916 13.916 0 009 11a13.917 13.917 0 003.44 9.571m3.44-2.04A13.916 13.916 0 0015 11c0-2.78-.812-5.37-2.203-7.561m1.41-1.978A13.987 13.987 0 0118 11c0 3.807-1.517 7.26-3.983 9.774M10.5 16.5c-1.38 0-2.5-1.12-2.5-2.5 0-1.89 1.436-3.448 3.253-3.968a3.75 3.75 0 014.247 3.968c0 1.38-1.12 2.5-2.5 2.5z"></path>
+        </svg>
+      </div>
+      
+      <div class="flex flex-col items-center">
+        <span class="text-sm font-bold font-outfit text-brand-400">Total: 0원</span>
+        <span class="text-xxs text-slate-500 mt-0.5">※ 청구금액은 실제로 0원입니다.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== [팝업 모달 3: 도파민 룰렛 팝업] ==================== -->
+  <div id="rouletteModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative overflow-hidden flex flex-col items-center">
+      <h3 class="font-black text-lg text-slate-800 flex items-center gap-1 mb-1">아무거나 골라줘! 🎯</h3>
+      <p class="text-xxs text-slate-400 mb-6">원판을 돌려 랜덤 메뉴 하나를 즉시 담습니다.</p>
+      
+      <!-- 룰렛 보드 컨테이너 -->
+      <div class="relative w-56 h-56 flex items-center justify-center mb-6">
+        <!-- 룰렛 화살표 (상단 포인터) -->
+        <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 z-20 bg-red-500 flex items-center justify-center text-white font-bold rounded-b-md shadow-md" style="clip-path: polygon(50% 100%, 0 0, 100% 0);">
+        </div>
+        
+        <!-- 원판 자체 (SVG 원형 분할 패턴으로 교체 또는 간단히 캔버스/SVG 구조) -->
+        <div id="rouletteWheel" class="w-full h-full rounded-full border-4 border-slate-800 shadow-xl overflow-hidden relative" style="transform: rotate(0deg);">
+          <!-- 룰렛 파이 배경 (CSS 원뿔 그라데이션) -->
+          <div class="w-full h-full absolute inset-0" style="background: conic-gradient(
+            #ffd6d6 0deg 45deg, 
+            #e3f2fd 45deg 90deg, 
+            #e8f5e9 90deg 135deg, 
+            #fff3e0 135deg 180deg, 
+            #f3e5f5 180deg 225deg, 
+            #e0f7fa 225deg 270deg, 
+            #fffde7 270deg 315deg, 
+            #f1f8e9 315deg 360deg
+          );"></div>
+          
+          <!-- 원판 내 텍스트 라벨들 (각 분할 45도마다 배치) -->
+          <div class="absolute w-full h-full text-xxs font-bold text-slate-700">
+            <span class="absolute top-4 left-1/2 -translate-x-1/2 rotate-0 origin-[50%_112px]">치킨</span>
+            <span class="absolute top-4 left-1/2 -translate-x-1/2 rotate-45 origin-[50%_112px]">피자</span>
+            <span class="absolute top-4 left-1/2 -translate-x-1/2 rotate-90 origin-[50%_112px]">떡볶이</span>
+            <span class="absolute top-4 left-1/2 -translate-x-1/2 rotate-135 origin-[50%_112px]">마라탕</span>
+            <span class="absolute top-4 left-1/2 -translate-x-1/2 rotate-180 origin-[50%_112px]">사이드</span>
+            <span class="absolute top-4 left-1/2 -translate-x-1/2 rotate-225 origin-[50%_112px]">튀김</span>
+            <span class="absolute top-4 left-1/2 -translate-x-1/2 rotate-270 origin-[50%_112px]">스페셜</span>
+            <span class="absolute top-4 left-1/2 -translate-x-1/2 rotate-315 origin-[50%_112px]">골라골라</span>
+          </div>
+          
+          <!-- 중앙 코어 핀 -->
+          <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-slate-900 border-4 border-white rounded-full z-10 flex items-center justify-center">
+            <div class="w-2 h-2 rounded-full bg-brand-500"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 룰렛 컨트롤 -->
+      <div class="flex gap-2.5 w-full">
+        <button id="btnSpinWheel" onclick="spinWheel()" class="flex-1 bg-brand-500 hover:bg-brand-600 text-white font-extrabold text-sm py-3.5 rounded-xl transition-all shadow-md active:scale-95">
+          원판 돌리기
+        </button>
+        <button onclick="closeRoulette()" class="px-5 bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold text-sm py-3.5 rounded-xl transition-all">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== [자체 오디오 피드백 및 로직 스크립트] ==================== -->
+  <script>
+    // --- 1. 앱 내부 데이터 모델 및 목업 자료 정의 ---
+    const STORES = [
+      {
+        id: "chicken",
+        name: "치킨은 살 안쪄",
+        category: "치킨",
+        badge: "치킨 전문점",
+        rating: 4.99,
+        deliveryTime: 25,
+        deliveryTip: 3500,
+        minOrder: 16000,
+        slogan: "닭가슴살도 닭입니다. 가짜로 먹으면 0kcal!",
+        menus: [
+          { id: "chicken_1", name: "가짜 바삭 후라이드 치킨", price: 20000, cal: 1600, desc: "가짜로 바삭함을 제대로 살린 오리지널 바삭 후라이드." },
+          { id: "chicken_2", name: "가짜 중독 양념 치킨", price: 21500, cal: 1800, desc: "달콤 끈적하지만 몸에는 평화로운 시그니처 가짜 양념 치킨." },
+          { id: "chicken_3", name: "가짜 바삭 닭똥집 튀김", price: 12000, cal: 800, desc: "씹는 쫄깃함을 그대로 가짜 재연해 낸 맥주 도둑 사이드." }
+        ]
+      },
+      {
+        id: "tteokbokki",
+        name: "떡볶이 마왕",
+        category: "분식",
+        badge: "분식/야식",
+        rating: 4.95,
+        deliveryTime: 20,
+        deliveryTip: 2000,
+        minOrder: 14000,
+        slogan: "엽기적인 맵기, 하지만 위장엔 평화가 찾아옵니다.",
+        menus: [
+          { id: "tteok_1", name: "치즈 폭포 대홍수 떡볶이", price: 15000, cal: 1200, desc: "치즈 대홍수가 몰아쳐도 내 뱃살에는 평화가 깃드는 떡볶이." },
+          { id: "tteok_2", name: "가짜 모듬 모짜렐라 모둠튀김", price: 8000, cal: 600, desc: "김말이, 군만두, 치즈볼이 조합된 바삭 고소 가짜 튀김 모음." },
+          { id: "tteok_3", name: "도파민 순대 (내장 듬뿍)", price: 6500, cal: 450, desc: "허파와 염통 가짜 토핑이 듬뿍 들어간 찰순대." }
+        ]
+      },
+      {
+        id: "pizza",
+        name: "내일아침 후회 피자",
+        category: "피자",
+        badge: "피자/양식",
+        rating: 4.88,
+        deliveryTime: 30,
+        deliveryTip: 3000,
+        minOrder: 18000,
+        slogan: "한 판 다 가짜로 결제해도 0원인 마법의 화덕 피자",
+        menus: [
+          { id: "pizza_1", name: "도파민 폭발 가짜 페퍼로니 피자", price: 23900, cal: 2000, desc: "페퍼로니가 가득 깔려 짭조름한 맥주 꿀조합 가짜 화덕피자." },
+          { id: "pizza_2", name: "가짜 치즈 오븐 토마토 스파게티", price: 8500, cal: 700, desc: "은박지 가장자리에 묻은 소스까지 긁고 싶은 가짜 오븐 파스타." },
+          { id: "pizza_3", name: "갈릭 디핑 소스 & 수제 피클", price: 1500, cal: 150, desc: "피자 도우 끝을 마법같이 채워주는 중독성 갈릭 마요 소스." }
+        ]
+      },
+      {
+        id: "maratang",
+        name: "도파민 극락 마라탕",
+        category: "마라탕",
+        badge: "아시안/중식",
+        rating: 4.97,
+        deliveryTime: 22,
+        deliveryTip: 2800,
+        minOrder: 15000,
+        slogan: "혈관 건강을 지키는 0단계 마라탕 시뮬레이터",
+        menus: [
+          { id: "mara_1", name: "중독성 극강 가짜 마라탕", price: 18000, cal: 1100, desc: "옥수수면과 푸주, 분모자가 가득 들어간 알싸함 0단계 극강 마라탕." },
+          { id: "mara_2", name: "바삭 고소 가짜 꿔바로우", price: 15000, cal: 900, desc: "쫀득 달콤 바삭의 3박자를 완벽히 갖춘 마라탕 최강의 짝꿍." },
+          { id: "mara_3", name: "도파민 듬뿍 볶음밥", price: 7500, cal: 600, desc: "고슬고슬하게 볶아 마라 국물에 적셔먹기 최고인 가짜 계란 볶음밥." }
+        ]
+      }
+    ];
+
+    // --- 2. 상태 관리 변수 ---
+    let appState = {
+      savings: { money: 0, calories: 0, time: 0 },
+      cart: [], // { menuId, name, price, cal, count }
+      currentStore: null,
+      currentCategory: '전체',
+      currentSort: 'popular',
+      
+      // 피젯 게임 변수들
+      rpm: 0,
+      deliveryProgress: 0, // 0 to 100
+      deliveryTimeRemaining: 60, // seconds
+      deliveryTimerInterval: null,
+      rpmDecayInterval: null
+    };
+
+    // --- 3. Web Audio API 신디사이저 사운드 시스템 ---
+    let audioCtx = null;
+    
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // 간단한 단음 멜로디 재생
+    function playBeep(freq, duration, type = 'sine', vol = 0.1) {
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        
+        gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        console.error("Audio play fail:", e);
+      }
+    }
+
+    // 카트 추가시 동전 소리 (Rising 2-tone)
+    function playCoinSound() {
+      playBeep(523.25, 0.1, 'sine', 0.12); // C5
+      setTimeout(() => {
+        playBeep(880.00, 0.15, 'sine', 0.1); // A5
+      }, 70);
+    }
+
+    // 결제 성공 시 토스 스타일 "띠링~"
+    function playPaymentSound() {
+      playBeep(587.33, 0.12, 'triangle', 0.15); // D5
+      setTimeout(() => {
+        playBeep(783.99, 0.2, 'triangle', 0.15); // G5
+      }, 80);
+    }
+
+    // 오토바이 엔진 가속 배기음 시뮬레이션
+    function playEngineSound(rpm) {
+      try {
+        initAudio();
+        // RPM에 따른 오프셋 주파수
+        const baseFreq = 80 + (rpm * 0.4);
+        
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        osc.type = 'sawtooth'; // 거친 오토바이 음색
+        osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+        // 고음 슬라이드 효과 (RPM 급가속 표현)
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, audioCtx.currentTime + 0.15);
+        
+        gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.18);
+        
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.18);
+      } catch (e) {
+        console.error("Engine sound error:", e);
+      }
+    }
+
+    // 배달 완료 축하 멜로디 (도파민 팡파레)
+    function playSuccessChime() {
+      const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50]; // C 코드 아르페지오
+      notes.forEach((freq, idx) => {
+        setTimeout(() => {
+          playBeep(freq, 0.25, 'sine', 0.12);
+        }, idx * 100);
+      });
+    }
+
+    // --- 4. 화면 라우팅 관리 ---
+    function showScreen(screenId) {
+      // 모든 화면 숨김
+      document.getElementById('screen-home').classList.add('hidden');
+      document.getElementById('screen-stores').classList.add('hidden');
+      document.getElementById('screen-store-detail').classList.add('hidden');
+      document.getElementById('screen-delivery').classList.add('hidden');
+      document.getElementById('screen-receipt').classList.add('hidden');
+      
+      // 타겟 화면 표시
+      document.getElementById(screenId).classList.remove('hidden');
+      
+      // 스크롤 상단 리셋
+      const viewport = document.getElementById(screenId).parentElement;
+      if (viewport) viewport.scrollTop = 0;
+    }
+
+    // --- 5. 로컬 데이터 관리 ---
+    function loadSavingsData() {
+      const raw = localStorage.getItem('fake_delivery_savings');
+      if (raw) {
+        try {
+          appState.savings = JSON.parse(raw);
+        } catch (e) {
+          appState.savings = { money: 0, calories: 0, time: 0 };
+        }
+      } else {
+        appState.savings = { money: 0, calories: 0, time: 0 };
+      }
+      updateDashboardUI();
+    }
+
+    function saveSavingsData() {
+      localStorage.setItem('fake_delivery_savings', JSON.stringify(appState.savings));
+      updateDashboardUI();
+    }
+
+    function updateDashboardUI() {
+      document.getElementById('savedMoney').innerText = Number(appState.savings.money).toLocaleString();
+      document.getElementById('savedCalories').innerText = Number(appState.savings.calories).toLocaleString();
+      document.getElementById('savedTime').innerText = Number(appState.savings.time).toLocaleString();
+
+      // 등급 및 격려 문구 세팅
+      updateUserTier();
+    }
+
+    function resetStats() {
+      if (confirm("정말로 모든 절약 통계를 초기화하시겠습니까? 지갑 성과도 처음부터 다시 쌓이게 됩니다.")) {
+        appState.savings = { money: 0, calories: 0, time: 0 };
+        saveSavingsData();
+        playBeep(150, 0.4, 'triangle');
+      }
+    }
+
+    function updateUserTier() {
+      const totalMoney = appState.savings.money;
+      let tier = "배달 극복 꿈나무 🌱";
+      let emoji = "🌱";
+      let nextTierMsg = "다음 등급까지 참기 1회 남음";
+
+      if (totalMoney >= 150000) {
+        tier = "우주 최강 절약 천사 👼";
+        emoji = "👼";
+        nextTierMsg = "이미 지상 최강의 경제적 자유를 달성하셨습니다!";
+      } else if (totalMoney >= 100000) {
+        tier = "지갑의 요정 🧚";
+        emoji = "🧚";
+        nextTierMsg = "다음 단계까지 " + (150000 - totalMoney).toLocaleString() + "원 아끼기 남음";
+      } else if (totalMoney >= 60000) {
+        tier = "요아정 저항군 리더 🛡️";
+        emoji = "🛡️";
+        nextTierMsg = "다음 단계까지 " + (100000 - totalMoney).toLocaleString() + "원 아끼기 남음";
+      } else if (totalMoney >= 30000) {
+        tier = "야식 참기 마스터 🥋";
+        emoji = "🥋";
+        nextTierMsg = "다음 단계까지 " + (60000 - totalMoney).toLocaleString() + "원 아끼기 남음";
+      } else if (totalMoney > 0) {
+        tier = "돈 복사기 입문자 💵";
+        emoji = "💵";
+        nextTierMsg = "다음 단계까지 " + (30000 - totalMoney).toLocaleString() + "원 아끼기 남음";
+      } else {
+        nextTierMsg = "가짜로 주문하고 돈을 바로 아껴보세요!";
+      }
+
+      document.getElementById('userTier').innerText = tier;
+      document.getElementById('tierEmoji').innerText = emoji;
+      document.getElementById('nextTierText').innerText = nextTierMsg;
+
+      // 자극 멘트 배열
+      const quotes = [
+        "배달 대신 피젯 스피너로 손가락 도파민을 채우는 똑똑한 당신!",
+        "오늘 시켰으면 3일 동안 후회했을 그 맛, 가짜 배달로 깔끔히 정화 완료.",
+        "배달팁 3,500원 아끼기? 탭 10번이면 실제 지갑 통장 잔고가 늘어납니다.",
+        "위장에 소화되지 않는 가짜 음식을 먹고 칼로리도 0kcal를 킵하세요."
+      ];
+      const randomQuote = quotes[Math.floor((totalMoney / 10000) % quotes.length)];
+      document.getElementById('encourageMessage').innerText = randomQuote;
+    }
+
+    // --- 6. 화면 이동 컨트롤러 ---
+    function goToHome() {
+      showScreen('screen-home');
+    }
+
+    function goToStoreList() {
+      initAudio();
+      renderStoreList();
+      showScreen('screen-stores');
+    }
+
+    function backToStoreList() {
+      // 카트 확인 후 취소
+      if (appState.cart.length > 0) {
+        if (!confirm("뒤로 가면 현재 작성 중인 가짜 장바구니가 비워집니다. 나가시겠습니까?")) {
+          return;
+        }
+      }
+      appState.cart = [];
+      updateBottomCartBar();
+      showScreen('screen-stores');
+    }
+
+    // --- 7. 가게 리스트 기능 및 정렬 구현 ---
+    function renderStoreList() {
+      const container = document.getElementById('storeContainer');
+      container.innerHTML = "";
+
+      let filtered = STORES;
+      if (appState.currentCategory !== '전체') {
+        filtered = STORES.filter(s => s.category === appState.currentCategory);
+      }
+
+      // 정렬 처리
+      let sorted = [...filtered];
+      if (appState.currentSort === 'popular') {
+        sorted.sort((a, b) => b.rating - a.rating);
+      } else if (appState.currentSort === 'fast') {
+        sorted.sort((a, b) => a.deliveryTime - b.deliveryTime);
+      } else if (appState.currentSort === 'tip') {
+        sorted.sort((a, b) => a.deliveryTip - b.deliveryTip);
+      }
+
+      sorted.forEach(store => {
+        // 가게 카드 HTML 구성 (세련된 아키텍처)
+        const card = document.createElement('div');
+        card.className = "bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md hover:border-brand-100 transition-all cursor-pointer flex gap-3.5 transform active:scale-[0.98]";
+        card.onclick = () => selectStore(store.id);
+
+        // 카테고리별 테마 이미지용 그라데이션 SVG
+        let bgGradient = "from-red-400 to-pink-500";
+        let storeEmoji = "🍗";
+        if (store.category === '치킨') { bgGradient = "from-amber-400 to-orange-500"; storeEmoji = "🍗"; }
+        else if (store.category === '분식') { bgGradient = "from-red-400 to-rose-600"; storeEmoji = "🌶️"; }
+        else if (store.category === '피자') { bgGradient = "from-yellow-400 to-orange-500"; storeEmoji = "🍕"; }
+        else if (store.category === '마라탕') { bgGradient = "from-red-600 to-amber-600"; storeEmoji = "🍜"; }
+
+        card.innerHTML = `
+          <div class="w-20 h-20 rounded-xl bg-gradient-to-tr ${bgGradient} flex items-center justify-center text-3xl shadow-inner shrink-0 relative">
+            <span>${storeEmoji}</span>
+            <div class="absolute -top-1 -left-1 bg-slate-900/80 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md">${store.category}</div>
+          </div>
+          <div class="flex-1 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <h3 class="font-extrabold text-sm text-slate-800">${store.name}</h3>
+                <span class="flex items-center text-[11px] font-bold text-yellow-500 shrink-0">⭐ ${store.rating}</span>
+              </div>
+              <p class="text-xxs text-slate-400 mt-1 line-clamp-1">${store.slogan}</p>
+            </div>
+            <div class="flex items-center justify-between border-t border-slate-50 pt-2 text-[10px] text-slate-500 font-semibold mt-1">
+              <span class="flex items-center gap-0.5">🛵 ${store.deliveryTime}분</span>
+              <span class="flex items-center gap-0.5">💵 팁 ${store.deliveryTip.toLocaleString()}원</span>
+              <span class="text-xxs text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded-md font-bold">인기 가짜매장</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterCategory(category) {
+      playBeep(400, 0.05, 'sine', 0.05);
+      appState.currentCategory = category;
+      
+      // 카테고리 칩 버튼 스타일 토글
+      const chips = document.querySelectorAll('.category-chip');
+      chips.forEach(btn => {
+        if (btn.innerText === category) {
+          btn.className = "px-4 py-1.5 bg-brand-500 text-white text-xs font-bold rounded-full transition-colors border border-brand-500 shrink-0 category-chip";
+        } else {
+          btn.className = "px-4 py-1.5 bg-white text-slate-500 text-xs font-medium rounded-full hover:bg-slate-50 transition-colors border border-slate-200 shrink-0 category-chip";
+        }
+      });
+
+      renderStoreList();
+    }
+
+    function sortStores(criteria) {
+      playBeep(450, 0.05, 'sine', 0.05);
+      appState.currentSort = criteria;
+
+      const tabs = document.querySelectorAll('.sort-tab');
+      tabs.forEach(tab => {
+        if (tab.id === `sort-${criteria}`) {
+          tab.className = "flex-1 py-2 text-center text-xs font-bold text-brand-500 border-b-2 border-brand-500 sort-tab";
+        } else {
+          tab.className = "flex-1 py-2 text-center text-xs font-medium text-slate-400 hover:text-slate-600 sort-tab";
+        }
+      });
+
+      renderStoreList();
+    }
+
+    // --- 8. 가게 상세 화면 및 장바구니 기능 구현 ---
+    function selectStore(storeId) {
+      initAudio();
+      playBeep(600, 0.08, 'sine', 0.08);
+      const store = STORES.find(s => s.id === storeId);
+      appState.currentStore = store;
+      appState.cart = []; // 장바구니 리셋
+
+      document.getElementById('detailStoreName').innerText = store.name;
+      document.getElementById('detailStoreRating').innerText = store.rating;
+      document.getElementById('detailStoreDeliveryTime').innerText = `${store.deliveryTime}분 소요`;
+      document.getElementById('detailStoreDeliveryTip').innerText = `배달팁 ${store.deliveryTip.toLocaleString()}원`;
+      document.getElementById('detailStoreBadge').innerText = store.badge;
+
+      // 메뉴 렌더링
+      renderMenuList();
+      updateBottomCartBar();
+      showScreen('screen-store-detail');
+    }
+
+    function renderMenuList() {
+      const container = document.getElementById('menuContainer');
+      container.innerHTML = "";
+
+      appState.currentStore.menus.forEach(menu => {
+        const item = document.createElement('div');
+        item.className = "bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between gap-4 hover:border-slate-200 transition-colors";
+        
+        item.innerHTML = `
+          <div class="flex-1 flex flex-col justify-between h-full pr-1">
+            <div>
+              <h4 class="font-extrabold text-sm text-slate-800">${menu.name}</h4>
+              <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">${menu.desc}</p>
+            </div>
+            <div class="flex items-center gap-3 mt-3">
+              <span class="text-xs font-black text-slate-800 font-outfit">${menu.price.toLocaleString()}원</span>
+              <span class="text-[10px] text-orange-500 font-bold bg-orange-50 px-1.5 py-0.5 rounded-md">${menu.cal} kcal</span>
+            </div>
+          </div>
+          <!-- 장바구니 담기 버튼 -->
+          <button onclick="addToCart('${menu.id}')" class="w-10 h-10 rounded-xl bg-brand-500 hover:bg-brand-600 text-white flex items-center justify-center shadow-md shadow-brand-500/10 active:scale-90 transition-all shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </button>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function addToCart(menuId) {
+      playCoinSound();
+      const menu = appState.currentStore.menus.find(m => m.id === menuId);
+      const existing = appState.cart.find(c => c.menuId === menuId);
+
+      if (existing) {
+        existing.count++;
+      } else {
+        appState.cart.push({
+          menuId: menu.id,
+          name: menu.name,
+          price: menu.price,
+          cal: menu.cal,
+          count: 1
+        });
+      }
+
+      // 화면에 플로팅 토스트 피드백 띄우기
+      showToast(`${menu.name} 추가됨 🛒`);
+
+      updateBottomCartBar();
+    }
+
+    function updateBottomCartBar() {
+      const bottomBar = document.getElementById('bottomCartBar');
+      if (appState.cart.length === 0) {
+        bottomBar.classList.add('hidden');
+        return;
+      }
+
+      bottomBar.classList.remove('hidden');
+
+      let totalCount = 0;
+      let totalPrice = 0;
+      appState.cart.forEach(item => {
+        totalCount += item.count;
+        totalPrice += (item.price * item.count);
+      });
+
+      document.getElementById('bottomCartCount').innerText = totalCount;
+      document.getElementById('bottomCartTotal').innerText = `${totalPrice.toLocaleString()}원`;
+    }
+
+    // 심플한 커스텀 토스트 알림창
+    function showToast(msg) {
+      const toast = document.createElement('div');
+      toast.className = "fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white font-semibold text-xs px-4 py-2.5 rounded-full z-50 pointer-events-none shadow-lg animate-fade-in flex items-center gap-1.5 transition-all duration-300";
+      toast.innerHTML = `<span>✨</span> <span>${msg}</span>`;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 1200);
+    }
+
+    // --- 9. 장바구니 모달 기능 ---
+    function openCartModal() {
+      initAudio();
+      playBeep(500, 0.06, 'sine', 0.05);
+      const container = document.getElementById('cartModalList');
+      container.innerHTML = "";
+
+      let sumPrice = 0;
+      appState.cart.forEach(item => {
+        sumPrice += (item.price * item.count);
+        const div = document.createElement('div');
+        div.className = "flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100";
+        div.innerHTML = `
+          <div class="flex-1 pr-2">
+            <h4 class="font-extrabold text-xs text-slate-800 line-clamp-1">${item.name}</h4>
+            <p class="text-[10px] text-slate-400 font-medium font-outfit mt-0.5">${(item.price * item.count).toLocaleString()}원 (${item.cal * item.count} kcal)</p>
+          </div>
+          <!-- 조절 수량 버튼 -->
+          <div class="flex items-center gap-2">
+            <button onclick="changeCartQty('${item.menuId}', -1)" class="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-50 active:scale-90 transition-transform">-</button>
+            <span class="text-xs font-bold font-outfit text-slate-800 px-1">${item.count}</span>
+            <button onclick="changeCartQty('${item.menuId}', 1)" class="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-50 active:scale-90 transition-transform">+</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      const tip = appState.currentStore.deliveryTip;
+      const total = sumPrice + tip;
+
+      document.getElementById('cartSumPrice').innerText = `${sumPrice.toLocaleString()}원`;
+      document.getElementById('cartDeliveryTip').innerText = `+${tip.toLocaleString()}원`;
+      document.getElementById('cartTotalPrice').innerText = `${total.toLocaleString()}원`;
+      document.getElementById('checkoutButtonText').innerText = `총 ${total.toLocaleString()}원 가짜로 결제하기 (0원 청구)`;
+
+      document.getElementById('cartModal').classList.remove('hidden');
+    }
+
+    function closeCartModal() {
+      document.getElementById('cartModal').classList.add('hidden');
+    }
+
+    function changeCartQty(menuId, change) {
+      playBeep(450, 0.05, 'sine', 0.05);
+      const item = appState.cart.find(c => c.menuId === menuId);
+      if (!item) return;
+
+      item.count += change;
+      if (item.count <= 0) {
+        appState.cart = appState.cart.filter(c => c.menuId !== menuId);
+      }
+
+      if (appState.cart.length === 0) {
+        closeCartModal();
+      } else {
+        openCartModal(); // 모달 갱신
+      }
+      updateBottomCartBar();
+    }
+
+    // --- 10. 도파민 룰렛 로직 ---
+    function openRoulette() {
+      initAudio();
+      playBeep(520, 0.07, 'sine', 0.08);
+      
+      // 휠 초기화
+      const wheel = document.getElementById('rouletteWheel');
+      wheel.style.transition = 'none';
+      wheel.style.transform = 'rotate(0deg)';
+      
+      document.getElementById('btnSpinWheel').disabled = false;
+      document.getElementById('btnSpinWheel').innerText = "원판 돌리기";
+      document.getElementById('rouletteModal').classList.remove('hidden');
+    }
+
+    function closeRoulette() {
+      document.getElementById('rouletteModal').classList.add('hidden');
+    }
+
+    function spinWheel() {
+      initAudio();
+      playBeep(440, 0.1, 'sine', 0.1);
+      
+      const btn = document.getElementById('btnSpinWheel');
+      btn.disabled = true;
+      btn.innerText = "돌아가는 중...";
+
+      // 랜덤 회전값 계산 (최소 5바퀴 + 알파)
+      const degrees = 1800 + Math.floor(Math.random() * 360);
+      const wheel = document.getElementById('rouletteWheel');
+      
+      wheel.style.transition = 'transform 3s cubic-bezier(0.1, 0.8, 0.2, 1)';
+      wheel.style.transform = `rotate(${degrees}deg)`;
+
+      // 효과음 가속 시뮬레이션
+      let step = 0;
+      const soundInterval = setInterval(() => {
+        if (step > 25) {
+          clearInterval(soundInterval);
+          return;
+        }
+        playBeep(500 + step * 25, 0.04, 'sine', 0.08);
+        step++;
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(soundInterval);
+        
+        // 룰렛 정지 후 메뉴 결정
+        // 360도로 나눴을 때 각 파트별 메뉴
+        const finalDeg = degrees % 360;
+        
+        // 회전 후 포인터(정각 12시)가 가리키는 파트
+        // 각 영역: 45도 간격 8분할
+        // 12시 기준은 회전 각도와 역방향이므로 360 - (finalDeg)
+        const pointerDeg = (360 - (finalDeg % 360)) % 360;
+        const index = Math.floor(pointerDeg / 45);
+        
+        // 룰렛 메뉴 인덱스 매칭
+        const menuKeys = ["치킨", "피자", "떡볶이", "마라탕", "사이드", "튀김", "스페셜", "골라골라"];
+        const chosenCategory = menuKeys[index];
+
+        // 해당 가게의 임의 메뉴 하나 장바구니에 강제 추가
+        const menus = appState.currentStore.menus;
+        const randomMenu = menus[Math.floor(Math.random() * menus.length)];
+
+        playCoinSound();
+        addToCart(randomMenu.id);
+        
+        btn.innerText = `[${randomMenu.name}] 담김!`;
+        
+        setTimeout(() => {
+          closeRoulette();
+        }, 1200);
+
+      }, 3000);
+    }
+
+    // --- 11. 결제 모달 및 핑거프린팅 스캔 기능 ---
+    function startCheckout() {
+      closeCartModal();
+      initAudio();
+      
+      // 결제 모달 팝업 열기
+      const checkoutModal = document.getElementById('checkoutModal');
+      checkoutModal.classList.remove('hidden');
+      
+      // 0.8초 후 자동으로 결제 성공 처리
+      setTimeout(() => {
+        playPaymentSound();
+        checkoutModal.classList.add('hidden');
+        
+        // 배달 피젯 셋업 및 이동
+        setupDeliveryFidget();
+      }, 1000);
+    }
+
+    // --- 12. 실시간 배달 스피너 및 피젯 탭 게임 로직 ---
+    function setupDeliveryFidget() {
+      showScreen('screen-delivery');
+      
+      appState.deliveryProgress = 0;
+      appState.deliveryTimeRemaining = 60;
+      appState.rpm = 0;
+
+      updateDeliveryUI();
+      
+      // 타이머 시작 (1초마다 진행)
+      if (appState.deliveryTimerInterval) clearInterval(appState.deliveryTimerInterval);
+      appState.deliveryTimerInterval = setInterval(() => {
+        // 백그라운드 기본 속도 상승 (초당 1%)
+        appState.deliveryProgress += 1.5;
+        appState.deliveryTimeRemaining -= 1;
+        
+        if (appState.deliveryProgress >= 100 || appState.deliveryTimeRemaining <= 0) {
+          appState.deliveryProgress = 100;
+          appState.deliveryTimeRemaining = 0;
+          finishDelivery();
+        }
+        updateDeliveryUI();
+      }, 1000);
+
+      // RPM 감쇠 타이머 (지속적으로 감속하여 탭 유도)
+      if (appState.rpmDecayInterval) clearInterval(appState.rpmDecayInterval);
+      appState.rpmDecayInterval = setInterval(() => {
+        if (appState.rpm > 0) {
+          appState.rpm = Math.max(0, appState.rpm - 15);
+          updateRpmUI();
+        }
+      }, 100);
+
+      // 휠 회전도 기본 RPM에 맞춤
+      updateFidgetRotation();
+    }
+
+    function updateDeliveryUI() {
+      const fill = document.getElementById('riderTrackFill');
+      const riderWrap = document.getElementById('riderIconWrapper');
+      
+      const roundedProgress = Math.min(100, Math.floor(appState.deliveryProgress));
+      
+      fill.style.width = `${roundedProgress}%`;
+      // 마크 좌우 이동
+      riderWrap.style.left = `${roundedProgress * 0.95}%`;
+
+      document.getElementById('deliveryProgressPercent').innerText = roundedProgress;
+      document.getElementById('deliveryTimeLeft').innerText = Math.max(0, appState.deliveryTimeRemaining);
+
+      // 진행 상황에 따른 우스꽝스러운 문구 갱신
+      let statusText = "라이더님이 음식을 열심히 픽업 중입니다... 🛵";
+      if (roundedProgress >= 90) {
+        statusText = "벨 누르기 3초 전! 심호흡을 깊게 하세요! 🛎️";
+      } else if (roundedProgress >= 70) {
+        statusText = "우리 집 엘리베이터 1층 사수 완료, 계단 돌파 중! 🏃💨";
+      } else if (roundedProgress >= 50) {
+        statusText = "라이더님이 교차로 신호 대기 중에 옆 댄스 배틀에 참여했습니다. 🕺";
+      } else if (roundedProgress >= 30) {
+        statusText = "더 빠른 배송을 위해 오토바이 앞바퀴를 높이 들었습니다! 🏍️💨";
+      } else if (roundedProgress >= 15) {
+        statusText = "지름길 골목을 날아가다 고양이와 눈싸움을 진행 중입니다. 🐱";
+      }
+      document.getElementById('deliveryStatusText').innerText = statusText;
+    }
+
+    // RPM 게이지와 피젯 스피너 회전 스피드 반영
+    let currentRotationAngle = 0;
+    let rotationAnimationId = null;
+
+    function updateRpmUI() {
+      document.getElementById('rpmValue').innerText = appState.rpm;
+      
+      // RPM 수치에 따라 피젯 휠 박스 섀도우 발광 효과 변경
+      const wheel = document.getElementById('fidgetWheel');
+      if (appState.rpm > 500) {
+        wheel.className = "w-52 h-52 rounded-full border-[10px] border-slate-200 border-t-brand-500 border-b-orange-500 flex items-center justify-center transition-all duration-300 shadow-neon-orange relative";
+      } else if (appState.rpm > 100) {
+        wheel.className = "w-52 h-52 rounded-full border-[10px] border-slate-200 border-t-brand-500 border-b-orange-500 flex items-center justify-center transition-all duration-300 shadow-neon relative";
+      } else {
+        wheel.className = "w-52 h-52 rounded-full border-[10px] border-slate-200 border-t-brand-500 border-b-orange-500 flex items-center justify-center transition-all duration-300 shadow-2xl relative";
+      }
+    }
+
+    function updateFidgetRotation() {
+      if (rotationAnimationId) cancelAnimationFrame(rotationAnimationId);
+      
+      function animate() {
+        if (appState.deliveryProgress >= 100) return; // 완료시 정지
+        
+        // RPM 비례해서 각도 회전
+        // 최소 속도 보장 (기본 회전)
+        const speedMultiplier = 0.5 + (appState.rpm * 0.05);
+        currentRotationAngle = (currentRotationAngle + speedMultiplier) % 360;
+        
+        document.getElementById('fidgetWheel').style.transform = `rotate(${currentRotationAngle}deg)`;
+        rotationAnimationId = requestAnimationFrame(animate);
+      }
+      
+      animate();
+    }
+
+    // 엔진 탭 버튼 및 스피너 바디 탭 이벤트 연결
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById('btnEngineTap');
+      const wheel = document.getElementById('fidgetWheel');
+
+      function handleEngineTap(e) {
+        e.preventDefault(); // 스크롤 등 기본동작 방지
+        e.stopPropagation();
+        
+        initAudio();
+        
+        // RPM 증가 (최대 1200 RPM 제한)
+        appState.rpm = Math.min(1200, appState.rpm + 50);
+        updateRpmUI();
+        
+        // 오토바이 엔진 배기음 재생
+        playEngineSound(appState.rpm);
+
+        // 배달 완료 가속 (탭할 때마다 1.8% 추가 단축)
+        appState.deliveryProgress = Math.min(100, appState.deliveryProgress + 1.8);
+        appState.deliveryTimeRemaining = Math.max(0, appState.deliveryTimeRemaining - 1.2);
+        
+        updateDeliveryUI();
+
+        // 탭 파티클(부릉!, 연기, 등) 생성
+        spawnTapParticle(e);
+
+        // 모바일 기기 자체 햅틱 진동 피드백 (지원 시)
+        if (navigator.vibrate) {
+          navigator.vibrate(25);
+        }
+
+        if (appState.deliveryProgress >= 100) {
+          finishDelivery();
+        }
+      }
+
+      // 모바일 최적화 및 일반 클릭 동시 대응
+      btn.addEventListener('touchstart', handleEngineTap, { passive: false });
+      btn.addEventListener('click', handleEngineTap);
+      
+      wheel.addEventListener('touchstart', handleEngineTap, { passive: false });
+      wheel.addEventListener('click', handleEngineTap);
+    });
+
+    // 탭한 좌표 근처에 날아가는 파티클 효과 생성
+    function spawnTapParticle(event) {
+      const container = document.getElementById('particleContainer');
+      const rect = container.getBoundingClientRect();
+      
+      let x, y;
+      // 터치 좌표 또는 클릭 좌표
+      if (event.touches && event.touches[0]) {
+        x = event.touches[0].clientX - rect.left;
+        y = event.touches[0].clientY - rect.top;
+      } else {
+        x = event.clientX - rect.left;
+        y = event.clientY - rect.top;
+      }
+
+      // 파티클 요소 생성
+      const particle = document.createElement('div');
+      particle.className = "absolute text-xs font-black pointer-events-none select-none animate-particle z-50 text-white drop-shadow-md";
+      
+      const words = ["부릉!", "+50RPM", "💨", "🔥", "빠름!!", "지갑안심!", "0원!"];
+      const randomWord = words[Math.floor(Math.random() * words.length)];
+      
+      particle.innerText = randomWord;
+      particle.style.left = `${x - 20}px`;
+      particle.style.top = `${y - 20}px`;
+      
+      // 색상 랜덤
+      const colors = ["text-brand-500", "text-orange-500", "text-yellow-400", "text-white"];
+      particle.classList.add(colors[Math.floor(Math.random() * colors.length)]);
+
+      container.appendChild(particle);
+
+      // 애니메이션 끝나면 돔에서 삭제
+      setTimeout(() => particle.remove(), 800);
+    }
+
+    function finishDelivery() {
+      if (appState.deliveryTimerInterval) clearInterval(appState.deliveryTimerInterval);
+      if (appState.rpmDecayInterval) clearInterval(appState.rpmDecayInterval);
+      if (rotationAnimationId) cancelAnimationFrame(rotationAnimationId);
+
+      playSuccessChime();
+      renderReceipt();
+      showScreen('screen-receipt');
+    }
+
+    // --- 13. 가짜 영수증 화면 렌더링 및 통계 반영 ---
+    function renderReceipt() {
+      const receiptNum = Date.now();
+      document.getElementById('receiptNumber').innerText = receiptNum;
+      document.getElementById('receiptStoreName').innerText = appState.currentStore.name;
+
+      const itemList = document.getElementById('receiptItemList');
+      itemList.innerHTML = "";
+
+      let orderSum = 0;
+      let totalCal = 0;
+      
+      appState.cart.forEach(item => {
+        const itemSum = item.price * item.count;
+        orderSum += itemSum;
+        totalCal += (item.cal * item.count);
+
+        const row = document.createElement('div');
+        row.className = "flex justify-between items-center text-slate-600";
+        row.innerHTML = `
+          <span>${item.name} x ${item.count}</span>
+          <span class="font-outfit">${itemSum.toLocaleString()}원</span>
+        `;
+        itemList.appendChild(row);
+      });
+
+      const tip = appState.currentStore.deliveryTip;
+      const totalCost = orderSum + tip;
+
+      document.getElementById('receiptOrderPrice').innerText = `${orderSum.toLocaleString()}원`;
+      document.getElementById('receiptDeliveryTip').innerText = `+${tip.toLocaleString()}원`;
+      
+      // "야식 극복 특별 할인"으로 최종 청구 금액이 0원이 됨
+      document.getElementById('receiptDiscount').innerText = `-${totalCost.toLocaleString()}원`;
+
+      // 성과 분석 바인딩
+      // 참아내며 굳힌 실제 금액(배달팁 포함 원가격), 0kcal 칼로리, 절약한 시간
+      document.getElementById('receiptSavedMoney').innerText = `${totalCost.toLocaleString()}원`;
+      document.getElementById('receiptSavedCal').innerText = `${totalCal.toLocaleString()} kcal`;
+      
+      // 세이브 시간 계산: 실제 1회 참음으로 약 25분 (기다리는 시간, 치우는 시간 등) 세이브
+      const savedMinutes = Math.floor(Math.random() * 15) + 20; // 20~35분 사이 랜덤
+      document.getElementById('receiptSavedTime').innerText = `${savedMinutes}분`;
+
+      // 쉐어/저장을 위해 임시 저장
+      appState.lastReceiptData = {
+        storeName: appState.currentStore.name,
+        totalMoney: totalCost,
+        totalCal: totalCal,
+        savedTime: savedMinutes,
+        orderItems: appState.cart.map(i => `${i.name}(${i.count}개)`).join(', ')
+      };
+    }
+
+    function shareReceipt() {
+      const data = appState.lastReceiptData;
+      if (!data) return;
+
+      const shareText = `[배달 피젯 스피너 - 야식 극복 성공 보고서]
+      
+🏆 배달 참기 성적표
+- 극복한 야식: ${data.storeName} (${data.orderItems})
+- 세이브한 식비: ${data.totalMoney.toLocaleString()}원
+- 세이브한 칼로리: ${data.totalCal.toLocaleString()} kcal
+- 지켜낸 야간 시간: ${data.savedTime}분
+
+"야식 참아서 0원 청구! 피젯 스피너 탭으로 야식 욕구 완전 해소 완료!"
+#야식극복 #배달피젯스피너 #절약왕`;
+
+      // 클립보드 복사
+      navigator.clipboard.writeText(shareText).then(() => {
+        showToast("영수증 요약 텍스트가 복사되었습니다!");
+        playBeep(700, 0.1, 'sine', 0.1);
+      }).catch(err => {
+        alert("복사 실패: " + err);
+      });
+    }
+
+    function finishOrderAndCollect() {
+      // 1. 세이브 데이터 누적
+      const data = appState.lastReceiptData;
+      if (data) {
+        appState.savings.money += data.totalMoney;
+        appState.savings.calories += data.totalCal;
+        appState.savings.time += data.savedTime;
+        saveSavingsData();
+      }
+
+      // 2. 카트 비우고 초기화
+      appState.cart = [];
+      appState.currentStore = null;
+
+      // 3. 메인 홈으로 이동
+      showScreen('screen-home');
+      playBeep(880, 0.1, 'sine', 0.08);
+    }
+
+    // --- 14. 초기화 실행 ---
+    window.onload = () => {
+      // 로컬 데이터 로딩
+      loadSavingsData();
+
+      // 모바일 시계 세팅 (실시간)
+      function updateTime() {
+        const now = new Date();
+        const hrs = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const timeStr = `${hrs}:${mins}`;
+        const target = document.getElementById('statusBarTime');
+        if (target) target.innerText = timeStr;
+      }
+      setInterval(updateTime, 1000);
+      updateTime();
+    };
+  </script>
+</body>
+</html>
